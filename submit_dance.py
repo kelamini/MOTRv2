@@ -49,8 +49,8 @@ class ListImgDataset(Dataset):
         im_h, im_w = cur_img.shape[:2]
         for line in self.det_db[f_path[:-4] + '.txt']:
             l, t, w, h, s = list(map(float, line.split(',')))
-            proposals.append([(l + w / 2) / im_w,
-                                (t + h / 2) / im_h,
+            proposals.append([(l + w / 2) / im_w,       # xc
+                                (t + h / 2) / im_h,     # yc
                                 w / im_w,
                                 h / im_h,
                                 s])
@@ -84,8 +84,8 @@ class Detector(object):
 
         self.vid = vid
         self.seq_num = os.path.basename(vid)
-        img_list = os.listdir(os.path.join(self.args.mot_path, vid, 'img1'))
-        img_list = [os.path.join(vid, 'img1', i) for i in img_list if 'jpg' in i]
+        img_list = os.listdir(os.path.join(self.args.mot_path, vid, 'img1'))    # img name
+        img_list = [os.path.join(vid, 'img1', i) for i in img_list if 'jpg' in i]   # img path
 
         self.img_list = sorted(img_list)
         self.img_len = len(self.img_list)
@@ -202,9 +202,9 @@ if __name__ == '__main__':
         seq_nums.remove('seqmap')
     vids = [os.path.join(sub_dir, seq) for seq in seq_nums]
 
-    rank = int(os.environ.get('RLAUNCH_REPLICA', '0'))
-    ws = int(os.environ.get('RLAUNCH_REPLICA_TOTAL', '1'))
-    vids = vids[rank::ws]
+    rank = int(os.environ.get('RLAUNCH_REPLICA', '0'))      # start
+    ws = int(os.environ.get('RLAUNCH_REPLICA_TOTAL', '1'))  # step
+    vids = vids[rank::ws]   # [start:stop:step]
 
     for vid in vids:
         det = Detector(args, model=detr, vid=vid)
