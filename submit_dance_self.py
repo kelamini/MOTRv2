@@ -49,7 +49,7 @@ class ListImgDataset(Dataset):
         cur_img = cv2.cvtColor(cur_img, cv2.COLOR_BGR2RGB)
         proposals = []
         im_h, im_w = cur_img.shape[:2]
-        for line in self.det_db[self.mot_path + f_path.split("/")[0] + img_name.replace("json", "jpg")]:
+        for line in self.det_db[os.path.join(self.mot_path, os.path.dirname(os.path.dirname(f_path)), "multi_yolox_8x8_300e_coco/exp/vote_new", img_name.replace("jpg", "json"))]:
             l, t, w, h, s = line
             proposals.append([(l + w / 2) / im_w,       # xc
                                 (t + h / 2) / im_h,     # yc
@@ -87,10 +87,12 @@ class Detector(object):
         self.vid = vid
         self.seq_num = os.path.basename(vid)
         sub_dir_list = os.listdir(os.path.join(self.args.mot_path, vid))
+        match_dir = None
         for sub_dir in sub_dir_list:
             if "2022" in sub_dir:
                 match_dir = sub_dir
                 break
+        print(f"match_dir: {match_dir}")
         img_list = os.listdir(os.path.join(self.args.mot_path, vid, match_dir))    # img name
         img_list = [os.path.join(vid, match_dir, i) for i in img_list if 'jpg' in i]   # img path
 
@@ -118,7 +120,7 @@ class Detector(object):
         total_occlusion_dts = 0
 
         track_instances = None
-        with open(os.path.join(self.args.mot_path, self.args.det_db)) as f:
+        with open(os.path.join(self.args.mot_path, "person_data_clean", self.args.det_db)) as f:
             det_db = json.load(f)
         loader = DataLoader(ListImgDataset(self.args.mot_path, self.img_list, det_db), 1, num_workers=2)
         lines = []
@@ -197,14 +199,14 @@ if __name__ == '__main__':
     detr, _, _ = build_model(args)
     detr.track_embed.score_thr = args.update_score_threshold
     detr.track_base = RuntimeTrackerBase(args.score_threshold, args.score_threshold, args.miss_tolerance)
-    checkpoint = torch.load(args.resume, map_location='cpu')
+    checkpoint = torch.load(args.resume, map_location='cuda:0')
     detr = load_model(detr, args.resume)
     detr.eval()
     detr = detr.cuda()
 
     # '''for MOT17 submit''' 
     sub_dir = "person_data_clean"
-    seq_nums = os.listdir(os.path.join(args.mot_path, sub_dir))
+    seq_nums = sorted(os.listdir(os.path.join(args.mot_path, sub_dir)))
     vids = [os.path.join(sub_dir, seq) for seq in seq_nums]
 
     rank = int(os.environ.get('RLAUNCH_REPLICA', '0'))      # start
@@ -212,7 +214,7 @@ if __name__ == '__main__':
     vids = vids[rank::ws]   # [start:stop:step]
 
     for vid in vids:
-        vid = Path(vid)
-        if vid.is_dir():
+        vid_abspath = Path(os.path.join(args.mot_path, vid))
+        if vid_abspath.is_dir() and vid != "person_data_clean/.git":
             det = Detector(args, model=detr, vid=vid)
             det.detect(args.score_threshold)

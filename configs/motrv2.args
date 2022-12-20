@@ -20,4 +20,5 @@
 --append_crowd
 --det_db det_db_motrv2.json
 --use_checkpoint
---output_dir /home/kelaboss/MOTRv2/runs
+--mot_path /home/kelaboss/datasets
+--output_dir /home/kelaboss/sophgo/MOTRv2/
